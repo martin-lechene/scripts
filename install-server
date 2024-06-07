@@ -169,6 +169,134 @@ if [[ "$install_dependencies" = "O" ]] || [[ "$install_dependencies" = "o" ]]; t
     sudo systemctl restart apache2
 fi
 
+# (s)ftp (vsftpd, proftpd, pure-ftpd)
+echo "Voulez-vous installer un serveur FTP ? (O/n)"
+read -r install_ftp
+if [[ "$install_ftp" = "O" ]] || [[ "$install_ftp" = "o" ]]; then
+    echo "Quel serveur FTP voulez-vous installer ?"
+    echo "1. vsftpd"
+    echo "2. proftpd"
+    echo "3. pure-ftpd"
+    echo "4. Skip"
+    read -r ftp_choice
+    case $ftp_choice in
+        1)
+            sudo apt install -y vsftpd
+            sudo systemctl restart vsftpd
+            # Configuration de vsftpd
+            echo "Configuration de vsftpd"
+            echo "Voulez-vous autoriser les connexions anonymes ? (O/n)"
+            read -r allow_anonymous
+            if [[ "$allow_anonymous" = "O" ]] || [[ "$allow_anonymous" = "o" ]]; then
+                echo "anonymous_enable=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser les utilisateurs locaux à se connecter ? (O/n)"
+            read -r allow_local_users
+            if [[ "$allow_local_users" = "O" ]] || [[ "$allow_local_users" = "o" ]]; then
+                echo "local_enable=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser les utilisateurs virtuels à se connecter ? (O/n)"
+            read -r allow_virtual_users
+            if [[ "$allow_virtual_users" = "O" ]] || [[ "$allow_virtual_users" = "o" ]]; then
+                echo "virtual_use_local_privs=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser le téléchargement de fichiers ? (O/n)"
+            read -r allow_download
+            if [[ "$allow_download" = "O" ]] || [[ "$allow_download" = "o" ]]; then
+                echo "write_enable=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser le téléversement de fichiers ? (O/n)"
+            read -r allow_upload
+            if [[ "$allow_upload" = "O" ]] || [[ "$allow_upload" = "o" ]]; then
+                echo "anon_upload_enable=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser les connexions sécurisées ? (O/n)"
+            read -r allow_secure_connections
+            if [[ "$allow_secure_connections" = "O" ]] || [[ "$allow_secure_connections" = "o" ]]; then
+                echo "ssl_enable=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser les connexions TLS ? (O/n)"
+            read -r allow_tls
+            if [[ "$allow_tls" = "O" ]] || [[ "$allow_tls" = "o" ]]; then
+                echo "ssl_tlsv1=YES" >> /etc/vsftpd.conf
+                echo "ssl_sslv2=NO" >> /etc/vsftpd.conf
+                echo "ssl_sslv3=NO" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser les connexions chroot ? (O/n)"
+            read -r allow_chroot
+            if [[ "$allow_chroot" = "O" ]] || [[ "$allow_chroot" = "o" ]]; then
+                echo "chroot_local_user=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser les connexions passive ? (O/n)"
+            read -r allow_passive
+            if [[ "$allow_passive" = "O" ]] || [[ "$allow_passive" = "o" ]]; then
+                echo "pasv_enable=YES" >> /etc/vsftpd.conf
+            fi
+            echo "Voulez-vous autoriser les connexions passive avec des ports spécifiques ? (O/n)"
+            read -r allow_passive_ports
+
+            if [[ "$allow_passive_ports" = "O" ]] || [[ "$allow_passive_ports" = "o" ]]; then
+                echo "Entrez le port de départ :"
+                read -r passive_port_start
+                echo "Entrez le port de fin :"
+                read -r passive_port_end
+                echo "pasv_min_port=$passive_port_start" >> /etc/vsftpd.conf
+                echo "pasv_max_port=$passive_port_end" >> /etc/vsftpd.conf
+            fi
+            sudo systemctl restart vsftpd
+            ;;
+        2)
+            sudo apt install -y proftpd
+            sudo systemctl restart proftpd
+            # TODO: Configuration
+            ;;
+        3)
+            sudo apt install -y pure-ftpd
+            sudo systemctl restart pure-ftpd
+            # TODO: Configuration
+            ;;
+        4)
+            echo "Skip"
+            ;;
+        *)
+            echo "Choix invalide."
+            ;;
+    esac
+fi
+
+# Install ufw 
+echo "Voulez-vous installer UFW (Uncomplicated Firewall) ? (O/n)"
+read -r install_ufw
+if [[ "$install_ufw" = "O" ]] || [[ "$install_ufw" = "o" ]]; then
+    sudo apt install -y ufw
+    sudo ufw enable
+    sudo ufw allow ssh
+    sudo ufw allow http
+    sudo ufw allow https
+    sudo ufw status
+
+    # List post specific : fivem:30120/40210 | ftp : 21 | ssh : 22 | http : 80 | https : 443 | mysql : 3306 | postgres : 5432 | maildev : 1080 | mailhog : 8025 | webmin : 10000 | dns : 53 | apache2-utils : 80
+    $port_list = "21 22 53 80 443 1080 3306 5432 8025 10000 30120 40210"
+    for port in $port_list; do
+        if(sudo ufw status | grep -q $port); then
+            echo "Le port $port est déjà autorisé."
+            continue
+        fi
+        echo "Voulez-vous autoriser le port $port ? (O/n)"
+        read -r allow_port
+        if [[ "$allow_port" = "O" ]] || [[ "$allow_port" = "o" ]]; then
+            sudo ufw allow $port
+        fi
+    done
+    echo "Voulez-vous autoriser d'autres ports ? (O/n)"
+    read -r allow_other_ports
+    if [[ "$allow_other_ports" = "O" ]] || [[ "$allow_other_ports" = "o" ]]; then
+        echo "Entrez le numéro du port à autoriser :"
+        read -r port_number
+        sudo ufw allow $port_number
+    fi
+fi
+
 # Installation d'autres outils
 echo "Voulez-vous installer d'autres outils ? (O/n)"
 read -r install_other_tools
@@ -189,37 +317,41 @@ if [[ "$install_other_tools" = "O" ]] || [[ "$install_other_tools" = "o" ]]; the
 fi
 
 # if MySQL is installed, configure it
-if [ -x "$(command -v mysql)" ]; then
-    echo "Voulez-vous configurer MySQL ? (O/n)"
-    read -r configure_mysql
-    if [[ "$configure_mysql" =~ ^[Oo]$ ]]; then
-        echo "Entrez le nom de la base de données :"
-        read -r db_name
-        echo "Entrez le nom de l'utilisateur :"
-        read -r db_user
-        echo "Entrez le mot de passe de l'utilisateur :"
-        read -r db_password
-        mysql -u root -e "CREATE DATABASE $db_name;"
-        mysql -u root -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_password';"
-        mysql -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
-        mysql -u root -e "FLUSH PRIVILEGES;"
-        echo "La base de données $db_name a été créée avec succès."
-    fi
-elif [ -x "$(command -v mariadb)" ]; then
-    echo "Voulez-vous configurer MariaDB ? (O/n)"
-    read -r configure_mariadb
-    if [[ "$configure_mariadb" =~ ^[Oo]$ ]]; then
-        echo "Entrez le nom de la base de données :"
-        read -r db_name
-        echo "Entrez le nom de l'utilisateur :"
-        read -r db_user
-        echo "Entrez le mot de passe de l'utilisateur :"
-        read -r db_password
-        mariadb -u root -e "CREATE DATABASE $db_name;"
-        mariadb -u root -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_password';"
-        mariadb -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
-        mariadb -u root -e "FLUSH PRIVILEGES;"
-        echo "La base de données $db_name a été créée avec succès."
+echo "Voulez-vous configurer une base de données MySQL ou MariaDB ? (O/n)"
+read -r configure_database
+if [[ "$configure_database" == "O"]] || [[ "$configure_database" == "o" ]]; then
+    if [ -x "$(command -v mysql)" ]; then
+        echo "Voulez-vous configurer MySQL ? (O/n)"
+        read -r configure_mysql
+        if [[ "$configure_mysql" =~ ^[Oo]$ ]]; then
+            echo "Entrez le nom de la base de données :"
+            read -r db_name
+            echo "Entrez le nom de l'utilisateur :"
+            read -r db_user
+            echo "Entrez le mot de passe de l'utilisateur :"
+            read -r db_password
+            mysql -u root -e "CREATE DATABASE $db_name;"
+            mysql -u root -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_password';"
+            mysql -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
+            mysql -u root -e "FLUSH PRIVILEGES;"
+            echo "La base de données $db_name a été créée avec succès."
+        fi
+    elif [ -x "$(command -v mariadb)" ]; then
+        echo "Voulez-vous configurer MariaDB ? (O/n)"
+        read -r configure_mariadb
+        if [[ "$configure_mariadb" =~ ^[Oo]$ ]]; then
+            echo "Entrez le nom de la base de données :"
+            read -r db_name
+            echo "Entrez le nom de l'utilisateur :"
+            read -r db_user
+            echo "Entrez le mot de passe de l'utilisateur :"
+            read -r db_password
+            mariadb -u root -e "CREATE DATABASE $db_name;"
+            mariadb -u root -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_password';"
+            mariadb -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
+            mariadb -u root -e "FLUSH PRIVILEGES;"
+            echo "La base de données $db_name a été créée avec succès."
+        fi
     fi
 fi
 

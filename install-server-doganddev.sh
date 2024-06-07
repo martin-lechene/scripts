@@ -1,0 +1,407 @@
+#!/bin/sh
+# Created by doganddev.eu
+# https://doganddev.eu
+# Version 1.0
+
+echo "Welcome to installer for \e[34mDOG&DEV\e[0m web server !"
+echo "| Version \e[34m1.0\e[0m |"
+echo "| Created by \e[34mDOG&DEV\e[0m |"
+echo " "
+echo "| ==================================== |"
+echo "| \e[34m2024\e[0m &copy; All rights reserved. |"
+echo " "
+echo "Ce script va vous guider pour installer un serveur web complet en quelques clics."
+echo "Pour commencer, assurez-vous que votre système est à jour."
+read "Appuyez sur une touche pour continuer..."
+echo "| ==================================== |"
+echo "\e[31mAttention : ce script va installer des logiciels sur votre système. Utilisez-le à vos risques et périls.\e[0m"
+read "Appuyez sur une touche pour continuer..."
+echo "En exécutant ce script, vous acceptez les Conditions Générales d'Utilisation (CGU) et la Politique de Confidentialité de \e[34mDOG&DEV\e[0m."
+echo "CGU : https://doganddev.eu/cgu"
+echo "Politique de Confidentialité : https://doganddev.eu/politique-de-confidentialite"
+echo "Appuyez immédiatement sur \e[31mCtrl + C\e[0m pour quitter le script si vous n'êtes pas d'accord."
+read "Appuyez sur une touche pour continuer..."
+
+# Vérifier si l'utilisateur est root
+if [ "$EUID" -ne 0 ]; then
+    echo "\e[31mCe script doit être exécuté en tant que root.\e[0m"
+    exit
+fi
+
+# Vérifier si le script est exécuté sur un système Debian ou dérivé
+if [ ! -f /etc/debian_version ]; then
+    echo "\e[31mCe script ne fonctionne que sur un système Debian ou dérivé.\e[0m"
+    exit
+fi
+
+# Vérifier si le script est exécuté sur un système 64 bits
+if [ "$(uname -m)" != "x86_64" ]; then
+    echo "\e[31mCe script ne fonctionne que sur un système 64 bits.\e[0m"
+    exit
+fi
+
+# Vérifier si le script est exécuté à partir du bon répertoire de travail (/)
+if [ "$PWD" != "/" ]; then
+    echo "\e[31mCe script doit être exécuté à partir du répertoire racine (/).\e[0m"
+    echo "Voulez-vous ignorer cet avertissement et continuer ? (Y/n)"
+    read -r ignore_warning
+    if [ "$ignore_warning" != "Y" ] && [ "$ignore_warning" != "y" ]; then
+        exit
+    fi
+    # Text danger if the user is not in the root directory
+    echo "\e[31mVous n'êtes pas dans le répertoire racine (/). Vous risquez de rencontrer des problèmes lors de l'installation.\e[0m" 
+fi
+
+echo "Checking if required commands are installed..."
+required_commands="apt apt-get dpkg dos2unix systemctl apache2 mysql mariadb php composer node npm npx git screen certbot phpMyAdmin Adminer Docker docker-compose python pip htop fail2ban net-tools imagemagick maildev mailhog webmin ffmpeg dnsutils apache2-utils"
+for command in $required_commands; do
+    if command -v "$command" > /dev/null 2>&1; then
+        echo -e "\033[32m✓ $command est installé\033[0m"
+    else
+        echo -e "\033[31m✗ $command n'est pas installé\033[0m"
+    fi
+done
+
+# Mise à jour du système
+echo "Voulez-vous mettre à jour le système ? (O/n)"
+read -r update_system
+if [ "$update_system" = "O" ] || [ "$update_system" = "o" ]; then
+    echo "Mise à jour du systCLème"
+    apt-get -y update 
+    apt-get -y upgrade 
+    apt -y update 
+    apt -y upgrade 
+    sudo dpkg --add-architecture i386
+    sudo apt-get install lib32z1 libncurses5:i386 libbz2-1.0:i386 lib32gcc1 lib32stdc++6 libtinfo5:i386 libcurl3-gnutls:i386
+fi
+
+# Installation de dos2unix which is used to convert the file to Unix format
+echo "Voulez-vous installer dos2unix ? (O/n)"
+read -r install_dos2unix
+if [ "$install_dos2unix" = "O" ] || [ "$install_dos2unix" = "o" ]; then
+    apt-get install dos2unix
+fi
+
+# change the format for  dos2unix
+echo "Convertir le fichier au format Unix (O/n)"
+read -r convert_file
+if [ "$convert_file" = "O" ] || [ "$convert_file" = "o" ]; then
+    dos2unix install-server-doganddev.sh
+fi
+
+# Installation des dépendances pour le serveur web (Apache, MySQL, PHP, etc.) if no choice skip or install element by element
+echo "Voulez-vous installer toutes les dépendances pour le serveur web ? (O/n)"
+read -r install_dependencies
+if [[ "$install_dependencies" = "O" ]] || [[ "$install_dependencies" = "o" ]]; then
+    echo "Installation de toutes les dépendances pour le serveur web"
+    echo "Installation : Apache2"
+    sudo apt install -y apache2
+    # Installation de MySQL or MariaDB
+    echo "Quelle base de données voulez-vous installer ?"
+    echo "1. MySQL"
+    echo "2. MariaDB"
+    echo "3. Postgres"
+    echo "4. Skip"
+    read -r db_choice
+    case $db_choice in
+        1)
+            sudo apt install -y mysql-server
+            ;;
+        2)
+            sudo apt install -y mariadb-server
+            ;;
+        3)
+            sudo apt install -y postgresql
+            ;;
+        4)
+            echo "Skip"
+            ;;
+        *)
+            echo "Choix invalide."
+            ;;
+    esac
+    # Installation de PHP
+    echo "Quelle version de PHP voulez-vous installer ?"
+    echo "1. PHP 7.4"
+    echo "2. PHP 8.0"
+    echo "3. PHP 8.1"
+    echo "4. PHP 8.2"
+    echo "5. PHP 8.3"
+    echo "6. Skip"
+    echo "7. Custom version"
+    read -r php_choice
+    case $php_choice in
+        1)
+            sudo apt install -y php7.4 php7.4-cli php7.4-common php7.4-mysql php7.4-mbstring php7.4-xml php7.4-zip php7.4-bcmath php7.4-json php7.4-curl
+            sudo a2enmod php7.4
+            ;;
+        2)
+            sudo apt install -y php8.0 php8.0-cli php8.0-common php8.0-mysql php8.0-mbstring php8.0-xml php8.0-zip php8.0-bcmath php8.0-json php8.0-curl
+            sudo a2enmod php8.0
+            ;;
+        3)
+            sudo apt install -y php8.1 php8.1-cli php8.1-common php8.1-mysql php8.1-mbstring php8.1-xml php8.1-zip php8.1-bcmath php8.1-json php8.1-curl
+            sudo a2enmod php8.1
+            ;;
+        4)
+            sudo apt install -y php8.2 php8.2-cli php8.2-common php8.2-mysql php8.2-mbstring php8.2-xml php8.2-zip php8.2-bcmath php8.2-json php8.2-curl
+            sudo a2enmod php8.2
+            ;;
+        5)
+            sudo apt install -y php8.3 php8.3-cli php8.3-common php8.3-mysql php8.3-mbstring php8.3-xml php8.3-zip php8.3-bcmath php8.3-json php8.3-curl
+            sudo a2enmod php8.3
+            ;;
+        6)
+            echo "Skip"
+            ;;
+        7)
+            echo "Entrez la version de PHP à installer (ex: 7.4, 8.0, 8.1, 8.2, 8.3) :"
+            read -r php_version
+            sudo apt install -y php$php_version php$php_version-cli php$php_version-common php$php_version-mysql php$php_version-mbstring php$php_version-xml php$php_version-zip php$php_version-bcmath php$php_version-json php$php_version-curl
+            sudo a2enmod php$php_version
+            ;;
+        *)
+            echo "Choix invalide."
+            ;;
+    esac
+    # Restart Apache2
+    echo "Restarting Apache2"
+    sudo systemctl restart apache2
+fi
+
+# Installation d'autres outils
+echo "Voulez-vous installer d'autres outils ? (O/n)"
+read -r install_other_tools
+if [[ "$install_other_tools" = "O" ]] || [[ "$install_other_tools" = "o" ]]; then
+    echo "Installation d'autres outils"
+    echo "Liste des outils :"
+    echo "composer, nodejs, npm, npx, git, screen, n8n, certbot, phpMyAdmin, Adminer, Docker, Docker Compose, Python, pip, htop, fail2ban, net-tools, imagemagick, maildev, mailhog, webmin, ffmpeg, dnsutils, apache2-utils"
+    echo "Entrez les nom des outil à installer :"
+    while true; do
+        read -r tools_choice
+        # if skip break the loop
+        if [[ "$tools_choice" = "Skip" ]]; then
+            break
+        fi
+        sudo apt install -y $tools_choice
+        sudo apt-get install -y $tools_choice
+    done
+fi
+
+# if MySQL is installed, configure it
+if [ -x "$(command -v mysql)" ]; then
+    echo "Voulez-vous configurer MySQL ? (O/n)"
+    read -r configure_mysql
+    if [[ "$configure_mysql" =~ ^[Oo]$ ]]; then
+        echo "Entrez le nom de la base de données :"
+        read -r db_name
+        echo "Entrez le nom de l'utilisateur :"
+        read -r db_user
+        echo "Entrez le mot de passe de l'utilisateur :"
+        read -r db_password
+        mysql -u root -e "CREATE DATABASE $db_name;"
+        mysql -u root -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_password';"
+        mysql -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
+        mysql -u root -e "FLUSH PRIVILEGES;"
+        echo "La base de données $db_name a été créée avec succès."
+    fi
+elif [ -x "$(command -v mariadb)" ]; then
+    echo "Voulez-vous configurer MariaDB ? (O/n)"
+    read -r configure_mariadb
+    if [[ "$configure_mariadb" =~ ^[Oo]$ ]]; then
+        echo "Entrez le nom de la base de données :"
+        read -r db_name
+        echo "Entrez le nom de l'utilisateur :"
+        read -r db_user
+        echo "Entrez le mot de passe de l'utilisateur :"
+        read -r db_password
+        mariadb -u root -e "CREATE DATABASE $db_name;"
+        mariadb -u root -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_password';"
+        mariadb -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
+        mariadb -u root -e "FLUSH PRIVILEGES;"
+        echo "La base de données $db_name a été créée avec succès."
+    fi
+fi
+
+# Check if minimal requirements are met indique in green icon if yes and red icon if no
+echo "Voulez-vous vérifier si les exigences minimales sont respectées ? (O/n)"
+read -r check_requirements
+if [[ "$check_requirements" =~ ^[Oo]$ ]]; then
+    echo "Vérification des exigences minimales"
+    # Check if Apache2 is installed
+    if [ -x "$(command -v apache2)" ]; then
+        echo -e "\e[32m✓ Apache2 est installé\e[0m"
+    else
+        echo -e "\e[31m✗ Apache2 n'est pas installé\e[0m"
+    fi
+    # Check if MySQL or MariaDB is installed
+    if [ -x "$(command -v mysql)" ] || [ -x "$(command -v mariadb)" ]; then
+        echo -e "\e[32m✓ MySQL ou MariaDB est installé\e[0m"
+    else
+        echo -e "\e[31m✗ MySQL ou MariaDB n'est pas installé\e[0m"
+    fi
+    # Check if PHP is installed
+    if [ -x "$(command -v php)" ]; then
+        echo -e "\e[32m✓ PHP est installé\e[0m"
+    else
+        echo -e "\e[31m✗ PHP n'est pas installé\e[0m"
+    fi
+    # Check if Composer is installed
+    if [ -x "$(command -v composer)" ]; then
+        echo -e "\e[32m✓ Composer est installé\e[0m"
+    else
+        echo -e "\e[31m✗ Composer n'est pas installé\e[0m"
+    fi
+    # Check if Node.js is installed
+    if [ -x "$(command -v node)" ]; then
+        echo -e "\e[32m✓ Node.js est installé\e[0m"
+    else
+        echo -e "\e[31m✗ Node.js n'est pas installé\e[0m"
+    fi
+    # Check if npm is installed
+    if [ -x "$(command -v npm)" ]; then
+        echo -e "\e[32m✓ npm est installé\e[0m"
+    else
+        echo -e "\e[31m✗ npm n'est pas installé\e[0m"
+    fi
+    # Check if npx is installed
+    if [ -x "$(command -v npx)" ]; then
+        echo -e "\e[32m✓ npx est installé\e[0m"
+    else
+        echo -e "\e[31m✗ npx n'est pas installé\e[0m"
+    fi
+    # Check if Git is installed
+    if [ -x "$(command -v git)" ]; then
+        echo -e "\e[32m✓ Git est installé\e[0m"
+    else
+        echo -e "\e[31m✗ Git n'est pas installé\e[0m"
+    fi
+    # Check if Screen is installed
+    if [ -x "$(command -v screen)" ]; then
+        echo -e "\e[32m✓ Screen est installé\e[0m"
+    else
+        echo -e "\e[31m✗ Screen n'est pas installé\e[0m"
+    fi
+fi
+
+# Git login
+echo "Voulez-vous configurer votre nom d'utilisateur et votre adresse e-mail Git ? (O/n)"
+read -r git_login
+if [[ "$git_login" =~ ^[Oo]$ ]]; then
+    echo "Entrez votre nom d'utilisateur Git :"
+    read -r git_username
+    echo "Entrez votre adresse e-mail Git :"
+    read -r git_email
+    git config --global user.name "$git_username"
+    git config --global user.email "$git_email"
+    echo "Votre nom d'utilisateur et votre adresse e-mail Git ont été configurés avec succès."
+    echo "===================================="
+    echo "Nom d'utilisateur : $git_username"
+    echo "Adresse e-mail : $git_email"
+    echo "===================================="
+    echo "Voulez-vous vérifier si votre nom d'utilisateur et votre adresse e-mail Git sont configurés ? (O/n)"
+    read -r check_git_login
+    if [[ "$check_git_login" =~ ^[Oo]$ ]]; then
+        git config --global --list
+    fi
+fi
+
+# Install project git on /var/www + link domain with (by form) + (if laravel project) composer install + npm install + npm run dev + create .env + php artisan key:generate + php artisan migrate + php artisan db:seed
+echo "Voulez-vous installer un projet Git sur /var/www ? (O/n)"
+read -r install_project
+# check if /var/www exists
+if [ ! -d /var/www ]; then
+    echo "\e[31mLe répertoire /var/www n'existe pas. Veuillez le créer et réessayer ou vérifier votre installation apache2 !\e[0m";
+    exit
+else 
+    echo "\e[32mLe répertoire /var/www existe.\e[0m";
+fi
+
+if [[ "$install_project" =~ ^[Oo]$ ]]; then
+    echo "Entrez l'URL du dépôt Git :"
+    read -r git_url
+    echo "Entrez le nom du domaine :"
+    read -r domain_name
+    cd /var/www
+    git clone $git_url $domain_name
+    echo "Le projet Git a été cloné avec succès."
+    echo "Voulez-vous lier le domaine $domain_name ? (O/n)"
+    read -r link_domain
+    if [[ "$link_domain" =~ ^[Oo]$ ]]; then
+        echo "
+<VirtualHost *:80>
+    ServerAdmin contact@doganddev.eu
+    ServerName $domain_name
+    DocumentRoot /var/www/$domain_name/public
+    <Directory /var/www/$domain_name/public>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>" > /etc/apache2/sites-available/$domain_name.conf
+        a2ensite $domain_name
+        systemctl reload apache2
+        echo "Le domaine $domain_name a été lié avec succès."
+    fi
+    # if SSL
+    echo "Voulez-vous installer un certificat SSL (with certbot) ? (O/n)"
+    read -r install_ssl
+    if [[ "$install_ssl" =~ ^[Oo]$ ]]; then
+        certbot --apache -d $domain_name
+    fi
+    # if Laravel project
+    if [ -f $domain_name/composer.json ]; then
+        # Check if in /var/www
+        if [ "$PWD" != "/var/www" ]; then
+            # danger color for say you are not in /var/www and now yes
+            echo "\e[31mVous n'êtes pas dans le répertoire /var/www. Vous risquez de rencontrer des problèmes lors de l'installation.\e[0m"
+            echo "Voulez-vous changer de répertoire ? (O/n)"
+            read -r change_directory
+            if [[ "$change_directory" =~ ^[Oo]$ ]]; then
+                cd /var/www
+            fi
+        fi
+        echo "Voulez-vous installer les dépendances Composer ? (O/n)"
+        read -r install_composer_dependencies
+        if [[ "$install_composer_dependencies" =~ ^[Oo]$ ]]; then
+            composer install
+        fi
+        echo "Voulez-vous installer les dépendances NPM ? (O/n)"
+        read -r install_npm_dependencies
+        if [[ "$install_npm_dependencies" =~ ^[Oo]$ ]]; then
+            npm install
+        fi
+        echo "Voulez-vous exécuter npm run dev ? (O/n)"
+        read -r run_npm_dev
+        if [[ "$run_npm_dev" =~ ^[Oo]$ ]]; then
+            npm run dev
+        fi
+        echo "Voulez-vous exécuter npm run prod ? (O/n)"
+        read -r run_npm_prod
+        if [[ "$run_npm_prod" =~ ^[Oo]$ ]]; then
+            npm run prod
+        fi
+        echo "Voulez-vous créer le fichier .env ? (O/n)"
+        read -r create_env_file
+        if [[ "$create_env_file" =~ ^[Oo]$ ]]; then
+            cp $domain_name/.env.example $domain_name/.env
+        fi
+        echo "Voulez-vous générer la clé de l'application ? (O/n)"
+        read -r generate_app_key
+        if [[ "$generate_app_key" =~ ^[Oo]$ ]]; then
+            php artisan key:generate
+        fi
+        echo "Voulez-vous exécuter les migrations ? (O/n)"
+        read -r run_migrations
+        if [[ "$run_migrations" =~ ^[Oo]$ ]]; then
+            php artisan migrate
+        fi
+        echo "Voulez-vous exécuter les seeders ? (O/n)"
+        read -r run_seeders
+        if [[ "$run_seeders" =~ ^[Oo]$ ]]; then
+            php artisan db:seed
+        fi
+    fi
+fi
